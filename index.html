@@ -915,6 +915,7 @@ function showTurn(i) {
       }, 400);
     }
   }, 60);
+}
 
 // ── Hint bar ────────────────────────────────────────────────────
 const hint = document.getElementById('hint');
@@ -961,7 +962,7 @@ document.addEventListener('keydown', e => {
     e.preventDefault();
     advance();
   }
-});});
+});
 
 // Tap / click anywhere on page (but not on interactive elements)
 document.addEventListener('click', e => {
