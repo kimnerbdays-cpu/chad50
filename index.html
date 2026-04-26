@@ -861,7 +861,7 @@ function showTurn(i) {
   const bubble = userMsg ? userMsg.querySelector('.user-bubble') : null;
 
   // Show the container
-  turn.style.removeProperty('display');
+  turn.style.display = 'block';
 
   // 1. User bubble slides in, then types out
   setTimeout(() => {
