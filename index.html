@@ -145,13 +145,26 @@ audio{width:100%;height:32px;border-radius:4px}
             <p style="font-size:13px;color:var(--text-muted);">Earliest documented characteristics: <strong>long fingers</strong>. Bald. Taken to ICU. He recovered. The questions started shortly after.</p>
           </div>
         </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Baby Chad photos — own turn, no user prompt -->
+<div class="turn" style="display:none">
+  <div class="claude-msg">
+    <div class="claude-avatar">C</div>
+    <div class="claude-body">
+      <div class="claude-name">Claude</div>
+      <div class="claude-text">
+        <p style="font-size:13px;color:var(--text-muted);margin-bottom:12px">Randy has provided the archive. Captions are his.</p>
         <div class="photo-grid" style="margin:14px 0">
-          <div class="photo-item"><img src="IMG_0678.jpg" alt="Baby Chad" onclick="openLightbox(this.src)"><div class="photo-caption">caption pending</div></div>
-          <div class="photo-item"><img src="IMG_5871.jpg" alt="Baby Chad" onclick="openLightbox(this.src)"><div class="photo-caption">caption pending</div></div>
-          <div class="photo-item"><img src="IMG_5536.jpg" alt="Baby Chad" onclick="openLightbox(this.src)"><div class="photo-caption">caption pending</div></div>
-          <div class="photo-item"><img src="IMG_9660.jpg" alt="Baby Chad" onclick="openLightbox(this.src)"><div class="photo-caption">caption pending</div></div>
-          <div class="photo-item"><img src="IMG_4452.jpg" alt="Baby Chad" onclick="openLightbox(this.src)"><div class="photo-caption">caption pending</div></div>
-          <div class="photo-item"><img src="IMG_3789.jpg" alt="Baby Chad" onclick="openLightbox(this.src)"><div class="photo-caption">caption pending</div></div>
+          <div class="photo-item"><img src="IMG_0678.jpg" alt="Baby Chad" onclick="openLightbox(this.src)"><div class="photo-caption">Best photo of them ever?</div></div>
+          <div class="photo-item"><img src="IMG_5871.jpg" alt="Baby Chad" onclick="openLightbox(this.src)"><div class="photo-caption">Thought bubble: That kid has no idea what it means to be a metrosexual.</div></div>
+          <div class="photo-item"><img src="IMG_5536.jpg" alt="Baby Chad" onclick="openLightbox(this.src)"><div class="photo-caption">Look, Ma! No jaundice!</div></div>
+          <div class="photo-item"><img src="IMG_9660.jpg" alt="Baby Chad" onclick="openLightbox(this.src)"><div class="photo-caption">I will never not be angry that Randy always looks tan.</div></div>
+          <div class="photo-item"><img src="IMG_4452.jpg" alt="Baby Chad" onclick="openLightbox(this.src)"><div class="photo-caption">Both of us look a helluva lot better in #1 and #4.</div></div>
+          <div class="photo-item"><img src="IMG_3789.jpg" alt="Baby Chad" onclick="openLightbox(this.src)"><div class="photo-caption">This is delicious. Makes my heart flutter.</div></div>
         </div>
         <p style="font-size:13px;color:var(--text-muted);margin-top:12px">One more thing worth knowing up front: Kimner isn't his birth name. He and your mom made it up — Weiner + Kim — and made it legal. We'll get to that.</p>
       </div>
@@ -797,8 +810,9 @@ document.addEventListener('keydown',e=>{if(e.key==='Escape')closeLightbox()});
 
 // ── Sequential chat reveal ──────────────────────────────────────
 const turns = Array.from(document.querySelectorAll('.turn'));
-let current = -1;   // which turn we're on
-let busy = false;   // true while animation is running — block double-trigger
+let current = -1;       // which turn we're on (-1 = not started)
+let busy = false;       // true while animation is running
+let awaitingClaude = false; // true when Quincy has typed but Claude hasn't responded yet
 
 const thinkingMs = [1600,1100,1000,1200,900,1400,1500,800,800,700,1700,1100,900,1200,1100,1000,900];
 const labels = [
@@ -837,7 +851,6 @@ function softScroll(el) {
 function typeWriter(el, text, onDone) {
   el.textContent = '';
   let i = 0;
-  // Speed: aim for ~3-4 seconds max regardless of length
   const delay = Math.min(38, Math.max(12, 3200 / text.length));
   function tick() {
     if (i < text.length) {
@@ -850,80 +863,72 @@ function typeWriter(el, text, onDone) {
   tick();
 }
 
-function showTurn(i) {
-  if (i >= turns.length) { busy = false; updateHint(); return; }
+// Phase 1: show Quincy's bubble with typewriter, then wait for spacebar
+function showUserMsg(i) {
   busy = true;
   updateHint();
 
   const turn = turns[i];
   const userMsg = turn.querySelector('.user-msg');
-  const claudeMsg = turn.querySelector('.claude-msg');
   const bubble = userMsg ? userMsg.querySelector('.user-bubble') : null;
 
-  // Show the container
   turn.style.display = 'block';
 
-  // 1. User bubble slides in, then types out
+  if (!userMsg || !bubble) {
+    // No user message in this turn — skip straight to Claude
+    awaitingClaude = true;
+    busy = false;
+    showClaudeMsg(i);
+    return;
+  }
+
   setTimeout(() => {
     userMsg.classList.add('msg-in');
     softScroll(userMsg);
-
-    if (bubble) {
-      const fullText = bubble.textContent.trim();
-      // Type it out
-      typeWriter(bubble, fullText, () => {
-        // 2. Pause after typing, then show thinking
-        setTimeout(() => {
-          const thinkEl = document.createElement('div');
-          thinkEl.className = 'turn-thinking';
-          thinkEl.innerHTML = `<div class="thinking-av">C</div>
-      <div class="thinking-inner">${astSVG}<span class="thinking-label">${labels[i] || 'Thinking…'}</span></div>`;
-          turn.insertBefore(thinkEl, claudeMsg);
-          setTimeout(() => { thinkEl.classList.add('thinking-in'); softScroll(thinkEl); }, 30);
-
-          // 3. Fade out thinking, reveal response
-          setTimeout(() => {
-            thinkEl.classList.add('thinking-out');
-            setTimeout(() => {
-              thinkEl.remove();
-              claudeMsg.classList.add('msg-in');
-              softScroll(claudeMsg);
-              setTimeout(() => { busy = false; updateHint(); }, 600);
-            }, 280);
-          }, thinkingMs[i] || 1200);
-
-        }, 500); // pause after typing before thinking starts
-      });
-    } else {
-      // No bubble — go straight to thinking
-      setTimeout(() => {
-        const thinkEl = document.createElement('div');
-        thinkEl.className = 'turn-thinking';
-        thinkEl.innerHTML = `<div class="thinking-av">C</div>
-      <div class="thinking-inner">${astSVG}<span class="thinking-label">${labels[i] || 'Thinking…'}</span></div>`;
-        turn.insertBefore(thinkEl, claudeMsg);
-        setTimeout(() => { thinkEl.classList.add('thinking-in'); softScroll(thinkEl); }, 30);
-        setTimeout(() => {
-          thinkEl.classList.add('thinking-out');
-          setTimeout(() => {
-            thinkEl.remove();
-            claudeMsg.classList.add('msg-in');
-            softScroll(claudeMsg);
-            setTimeout(() => { busy = false; updateHint(); }, 600);
-          }, 280);
-        }, thinkingMs[i] || 1200);
-      }, 400);
-    }
+    const fullText = bubble.textContent.trim();
+    typeWriter(bubble, fullText, () => {
+      awaitingClaude = true;
+      busy = false;
+      updateHint();
+    });
   }, 60);
+}
+
+// Phase 2: thinking animation then Claude's response
+function showClaudeMsg(i) {
+  busy = true;
+  awaitingClaude = false;
+  updateHint();
+
+  const turn = turns[i];
+  const claudeMsg = turn.querySelector('.claude-msg');
+
+  // Make sure the turn container is visible (for turns with no user msg)
+  turn.style.display = 'block';
+
+  const thinkEl = document.createElement('div');
+  thinkEl.className = 'turn-thinking';
+  thinkEl.innerHTML = `<div class="thinking-av">C</div>
+    <div class="thinking-inner">${astSVG}<span class="thinking-label">${labels[i] || 'Thinking…'}</span></div>`;
+  turn.insertBefore(thinkEl, claudeMsg);
+  setTimeout(() => { thinkEl.classList.add('thinking-in'); softScroll(thinkEl); }, 30);
+
+  setTimeout(() => {
+    thinkEl.classList.add('thinking-out');
+    setTimeout(() => {
+      thinkEl.remove();
+      claudeMsg.classList.add('msg-in');
+      softScroll(claudeMsg);
+      setTimeout(() => { busy = false; updateHint(); }, 600);
+    }, 280);
+  }, thinkingMs[i] || 1200);
 }
 
 // ── Hint bar ────────────────────────────────────────────────────
 const hint = document.getElementById('hint');
 function updateHint() {
-  if (current >= turns.length - 1 && !busy) {
-    hint.textContent = '';
-    hint.style.opacity = '0';
-  } else if (busy) {
+  const done = current >= turns.length - 1 && !awaitingClaude;
+  if (busy || done) {
     hint.textContent = '';
     hint.style.opacity = '0';
   } else {
@@ -936,21 +941,24 @@ function updateHint() {
 window.addEventListener("load", () => { window.scrollTo(0, 0); });
 document.addEventListener("DOMContentLoaded", () => { window.scrollTo(0, 0); });
 history.scrollRestoration = "manual";
-// Belt and suspenders — scroll again after a short delay to catch late-loading content
 setTimeout(() => { window.scrollTo(0, 0); }, 100);
 setTimeout(() => { window.scrollTo(0, 0); }, 500);
 
 // ── Advance ─────────────────────────────────────────────────────
+// Two presses per turn: [1] Quincy types → [2] Claude thinks + responds
 function advance() {
-  document.body.style.overflow = "";
+  document.body.style.overflow = "auto";
   if (busy) return;
-  // Don't steal spacebar from lightbox or media controls
   if (document.getElementById('lightbox').classList.contains('open')) return;
-  current++;
-  if (current < turns.length) showTurn(current);
-  else {
-    updateHint();
 
+  if (awaitingClaude) {
+    // Quincy has typed — now show Claude's response
+    showClaudeMsg(current);
+  } else {
+    // Move to next turn and show Quincy's message
+    current++;
+    if (current < turns.length) showUserMsg(current);
+    else updateHint();
   }
 }
 
